@@ -108,6 +108,32 @@ define Device/gl-mifi
 endef
 TARGET_DEVICES += gl-mifi
 
+define Device/mr12
+  DEVICE_TITLE := Meraki MR12
+  DEVICE_PACKAGES := kmod-spi-gpio
+  BOARDNAME = MR12
+  IMAGE_SIZE = 15680k
+  MTDPARTS = spi0.0:256k(u-boot)ro,256k(u-boot-env)ro,13440k(rootfs),2240k(kernel),64k(mac),128k(art)ro,15680k@0x80000(firmware)
+  IMAGE/kernel.bin = append-kernel
+  IMAGE/rootfs.bin = append-rootfs | pad-rootfs
+  IMAGE/sysupgrade.bin = append-rootfs | pad-rootfs | pad-to 13440k | append-kernel | check-size $$$$(IMAGE_SIZE)
+  IMAGES := kernel.bin rootfs.bin sysupgrade.bin
+endef
+TARGET_DEVICES += mr12
+
+define Device/mr16
+  DEVICE_TITLE := Meraki MR16
+  DEVICE_PACKAGES := kmod-spi-gpio
+  BOARDNAME = MR16
+  IMAGE_SIZE = 15680k
+  MTDPARTS = spi0.0:256k(u-boot)ro,256k(u-boot-env)ro,13440k(rootfs),2240k(kernel),64k(mac),128k(art)ro,15680k@0x80000(firmware)
+  IMAGE/kernel.bin = append-kernel
+  IMAGE/rootfs.bin = append-rootfs | pad-rootfs
+  IMAGE/sysupgrade.bin = append-rootfs | pad-rootfs | pad-to 13440k | append-kernel | check-size $$$$(IMAGE_SIZE)
+  IMAGES := kernel.bin rootfs.bin sysupgrade.bin
+endef
+TARGET_DEVICES += mr16
+
 define Device/dr531
   DEVICE_TITLE := Wallys DR531
   DEVICE_PACKAGES := kmod-usb-core kmod-usb2
@@ -571,3 +597,32 @@ $(Device/seama)
 endef
 
 TARGET_DEVICES += dir-869-a1 mynet-n600 mynet-n750 qihoo-c301
+
+define Build/mkwrggimg
+	$(STAGING_DIR_HOST)/bin/mkwrggimg -b \
+		-i $@ -o $@.imghdr -d /dev/mtdblock/1 \
+		-m $(BOARDNAME) -s $(DAP_SIGNATURE) \
+		-v LEDE -B $(REVISION)
+	mv $@.imghdr $@
+endef
+
+define Build/wrgg-pad-rootfs
+	$(STAGING_DIR_HOST)/bin/padjffs2 $(IMAGE_ROOTFS) -c 64 >>$@
+endef
+
+define Device/dap-2695-a1
+  DEVICE_TITLE := D-Link DAP-2695 rev. A1
+  DEVICE_PACKAGES := ath10k-firmware-qca988x kmod-ath10k uboot-envtools
+  BOARDNAME = DAP-2695-A1
+  IMAGES := factory.img sysupgrade.bin
+  IMAGE_SIZE = 15360k
+  IMAGE/factory.img = append-kernel | pad-offset 65536 160 | append-rootfs | wrgg-pad-rootfs | mkwrggimg | check-size $$$$(IMAGE_SIZE)
+  IMAGE/sysupgrade.bin = append-kernel | pad-offset 65536 160 | mkwrggimg | append-rootfs | wrgg-pad-rootfs | check-size $$$$(IMAGE_SIZE)
+  KERNEL := kernel-bin | patch-cmdline | relocate-kernel | lzma
+  KERNEL_INITRAMFS := $$(KERNEL) | mkwrggimg
+  MTDPARTS = spi0.0:256k(bootloader)ro,64k(bdcfg)ro,64k(rgdb)ro,64k(langpack)ro,15360k(firmware),448k(captival)ro,64k(certificate)ro,64k(radiocfg)ro
+  DAP_SIGNATURE := wapac02_dkbs_dap2695
+  DEVICE_VARS += DAP_SIGNATURE
+endef
+
+TARGET_DEVICES += dap-2695-a1
